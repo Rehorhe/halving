@@ -21,9 +21,38 @@ const hoursEl = document.getElementById("hours");
 const minutesEl = document.getElementById("minutes");
 const secondsEl = document.getElementById("seconds");
 
+// Элементы для блока истории и калькулятора
+const historyTableBodyEl = document.getElementById("history-table-body");
+const calcEntryEl = document.getElementById("calc-entry-price");
+const calcMultiplierEl = document.getElementById("calc-multiplier");
+const calcTargetEl = document.getElementById("calc-target-price");
+
 let chartInstance = null;
 let currentDays = 1;
 let lastPrice = null;
+
+// Упрощённые исторические данные по прошлым халвингам
+// Источники: открытые исследования по истории цены BTC; цифры округлены.
+const HALVING_HISTORY = [
+  {
+    year: 2012,
+    priceMinus500: 2, // $
+    halvingPrice: 12,
+    pricePlus500: 1100,
+  },
+  {
+    year: 2016,
+    priceMinus500: 170,
+    halvingPrice: 650,
+    pricePlus500: 20000,
+  },
+  {
+    year: 2020,
+    priceMinus500: 3800,
+    halvingPrice: 8820,
+    pricePlus500: 69000,
+  },
+];
 
 // Вспомогательная функция форматирования чисел
 function formatPrice(value) {
@@ -366,12 +395,67 @@ function startHalvingCountdown() {
   setInterval(update, 1000);
 }
 
+// Заполнение таблицы истории халвингов
+function populateHalvingHistory() {
+  if (!historyTableBodyEl) return;
+
+  const rowsHtml = HALVING_HISTORY.map((item) => {
+    const multiplier = item.pricePlus500 / item.priceMinus500;
+    return `
+      <tr>
+        <td>${item.year}</td>
+        <td>${formatPrice(item.priceMinus500)}</td>
+        <td>${formatPrice(item.halvingPrice)}</td>
+        <td>${formatPrice(item.pricePlus500)}</td>
+        <td class="history-multiplier">×${multiplier.toFixed(1)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  historyTableBodyEl.innerHTML = rowsHtml;
+}
+
+// Калькулятор для текущего цикла
+function setupCycleCalculator() {
+  if (!calcEntryEl || !calcMultiplierEl || !calcTargetEl) return;
+
+  const recalc = () => {
+    const entryValue = Number.parseFloat(calcEntryEl.value);
+    const multiplierValue = Number.parseFloat(calcMultiplierEl.value);
+
+    if (
+      Number.isNaN(entryValue) ||
+      entryValue <= 0 ||
+      Number.isNaN(multiplierValue) ||
+      multiplierValue <= 0
+    ) {
+      calcTargetEl.textContent = "—";
+      return;
+    }
+
+    const targetPrice = entryValue * multiplierValue;
+    calcTargetEl.textContent = formatPrice(targetPrice);
+  };
+
+  calcEntryEl.addEventListener("input", recalc);
+  calcMultiplierEl.addEventListener("input", recalc);
+
+  // Если есть актуальная цена BTC, можно подсказать её как стартовую
+  if (lastPrice != null && !Number.isNaN(lastPrice)) {
+    calcEntryEl.placeholder = String(Math.round(lastPrice));
+  }
+
+  recalc();
+}
+
 // Инициализация
 function init() {
   setupTimeframeButtons();
   loadChart(currentDays);
   fetchCurrentPrice();
   startHalvingCountdown();
+  populateHalvingHistory();
+  setupCycleCalculator();
 
   // Обновление цены каждые 20 секунд
   setInterval(fetchCurrentPrice, 20_000);

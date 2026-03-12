@@ -79,21 +79,91 @@
             <ul>
               <li>
                 Данные по цене и графику берутся из публичного API
-                CoinGecko (без ключа).
+                CoinGecko и Binance (без ключей).
               </li>
               <li>
                 Цена обновляется автоматически каждые
                 <span class="highlight">20 секунд</span>.
               </li>
               <li>
-                График обновляется при смене интервала или примерно раз в
-                несколько минут.
+                График обновляется при смене интервала, при этом сайт пробует
+                сначала CoinGecko, а при ошибке — Binance.
               </li>
               <li>
                 Сайт чисто статический — можно бесплатно разместить на
                 GitHub Pages, Netlify, Vercel и др.
               </li>
             </ul>
+          </div>
+
+          <div class="card history-card">
+            <h3>История прошлых халвингов и стратегия −500 / +500 дней</h3>
+            <p class="history-subtitle">
+              Ниже приведены упрощённые исторические данные. Цифры округлены и не являются точным
+              бэктестом, но хорошо показывают структуру прошлых циклов.
+            </p>
+
+            <div class="history-table-wrapper">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Год халвинга</th>
+                    <th>Цена ~500&nbsp;дн. до</th>
+                    <th>Цена в&nbsp;день халвинга</th>
+                    <th>Цена ~500&nbsp;дн. после<br />(пик цикла)</th>
+                    <th>Множитель<br />−500&nbsp;→&nbsp;+500&nbsp;дн.</th>
+                  </tr>
+                </thead>
+                <tbody id="history-table-body">
+                  <!-- Заполняется из script.js -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="history-calculator">
+              <h4>Черновой калькулятор текущего цикла</h4>
+              <p class="history-subtitle">
+                Введи свою оценку цены BTC за ~500 дней до следующего халвинга и предполагаемый
+                множитель. Сайт посчитает ориентировочную цену через ~500 дней после.
+              </p>
+              <div class="calc-grid">
+                <div class="calc-field">
+                  <label for="calc-entry-price">Предполагаемая цена входа (−500&nbsp;дней)</label>
+                  <div class="calc-input-row">
+                    <span class="calc-prefix">$</span>
+                    <input
+                      id="calc-entry-price"
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="Например, 40000"
+                    />
+                  </div>
+                </div>
+                <div class="calc-field">
+                  <label for="calc-multiplier">Ожидаемый множитель</label>
+                  <div class="calc-input-row">
+                    <input
+                      id="calc-multiplier"
+                      type="number"
+                      min="1"
+                      max="50"
+                      step="0.1"
+                      value="4"
+                    />
+                    <span class="calc-suffix">x</span>
+                  </div>
+                </div>
+              </div>
+              <div class="calc-result">
+                <span>Оценка цены через ~500 дней после халвинга:</span>
+                <strong id="calc-target-price">—</strong>
+              </div>
+              <p class="history-warning">
+                Это не финансовый совет и не точный прогноз, а иллюстрация идеи
+                «купить заранее и продавать после халвинга» по мотивам прошлых циклов.
+              </p>
+            </div>
           </div>
         </section>
       </main>
