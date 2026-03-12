@@ -18,20 +18,26 @@
           <span class="logo-icon">₿</span>
           <div class="logo-text">
             <h1>Bitcoin Live</h1>
-            <p>График цены BTC и дни до халвинга</p>
+            <p>График цены и дни до халвинга</p>
           </div>
         </div>
+
+        <div class="asset-switch">
+          <button class="asset-btn asset-btn-active" data-asset="BTC">BTC</button>
+          <button class="asset-btn" data-asset="ETH">ETH</button>
+        </div>
+
         <div class="price-card">
-          <div class="price-label">Текущая цена BTC</div>
-          <div id="btc-price" class="price-value">—</div>
-          <div id="btc-change" class="price-change muted">Загрузка…</div>
+          <div id="price-label" class="price-label">Текущая цена BTC</div>
+          <div id="asset-price" class="price-value">—</div>
+          <div id="asset-change" class="price-change muted">Загрузка…</div>
         </div>
       </header>
 
       <main class="main">
         <section class="chart-section">
           <div class="section-header">
-            <h2>Онлайн‑график BTC / USD</h2>
+            <h2 id="chart-title">Онлайн‑график BTC / USD</h2>
             <div class="timeframe-selector">
               <button data-days="1" class="btn btn-outline btn-active">
                 24 часа
@@ -74,40 +80,19 @@
             </div>
           </div>
 
-          <div class="card info-card">
-            <h3>Как работает сайт</h3>
-            <ul>
-              <li>
-                Данные по цене и графику берутся из публичного API
-                CoinGecko и Binance (без ключей).
-              </li>
-              <li>
-                Цена обновляется автоматически каждые
-                <span class="highlight">20 секунд</span>.
-              </li>
-              <li>
-                График обновляется при смене интервала, при этом сайт пробует
-                сначала CoinGecko, а при ошибке — Binance.
-              </li>
-              <li>
-                Сайт чисто статический — можно бесплатно разместить на
-                GitHub Pages, Netlify, Vercel и др.
-              </li>
-            </ul>
-          </div>
-
           <div class="card history-card">
-            <h3>История прошлых халвингов и стратегия −500 / +500 дней</h3>
+            <h3>История прошлых халвингов Bitcoin и стратегия −500 / +500 дней</h3>
             <p class="history-subtitle">
-              Ниже приведены упрощённые исторические данные. Цифры округлены и не являются точным
-              бэктестом, но хорошо показывают структуру прошлых циклов.
+              Ниже приведены упрощённые исторические данные по цене BTC: примерно 500 дней до
+              халвинга, в день события и около пика цикла. Цифры сильно округлены и не являются
+              точным бэктестом, но хорошо показывают структуру прошлых циклов.
             </p>
 
             <div class="history-table-wrapper">
               <table class="history-table">
                 <thead>
                   <tr>
-                    <th>Год халвинга</th>
+                    <th>Год BTC‑халвинга</th>
                     <th>Цена ~500&nbsp;дн. до</th>
                     <th>Цена в&nbsp;день халвинга</th>
                     <th>Цена ~500&nbsp;дн. после<br />(пик цикла)</th>

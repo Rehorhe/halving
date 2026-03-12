@@ -1,16 +1,41 @@
 // Конфигурация API и обновления
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
 const BINANCE_BASE = "https://api.binance.com/api/v3";
-const COIN_ID = "bitcoin";
 const VS_CURRENCY = "usd";
+
+// Поддерживаемые активы для переключателя
+const ASSETS = {
+  BTC: {
+    coingeckoId: "bitcoin",
+    binanceSymbol: "BTCUSDT",
+    label: "BTC",
+    fullName: "Bitcoin",
+  },
+  ETH: {
+    coingeckoId: "ethereum",
+    binanceSymbol: "ETHUSDT",
+    label: "ETH",
+    fullName: "Ethereum",
+  },
+};
+
+let currentAssetKey = "BTC";
+function currentAsset() {
+  return ASSETS[currentAssetKey];
+}
 
 // Примерная дата следующего халвинга (может немного отличаться по факту)
 // Оценка на основе среднего времени блока ~10 минут и высоты после халвинга 2024 года.
 const NEXT_HALVING_ESTIMATE_ISO = "2028-04-22T00:00:00Z";
 
 // Элементы DOM
-const priceEl = document.getElementById("btc-price");
-const changeEl = document.getElementById("btc-change");
+const priceEl = document.getElementById("asset-price");
+const changeEl = document.getElementById("asset-change");
+const priceLabelEl = document.getElementById("price-label");
+const chartTitleEl = document.getElementById("chart-title");
+const assetSwitchButtons = Array.from(
+  document.querySelectorAll(".asset-btn")
+);
 const loaderEl = document.getElementById("chart-loader");
 const timeframeButtons = Array.from(
   document.querySelectorAll(".timeframe-selector button")
@@ -23,6 +48,10 @@ const secondsEl = document.getElementById("seconds");
 
 // Элементы для блока истории и калькулятора
 const historyTableBodyEl = document.getElementById("history-table-body");
+const historyTitleEl = document.querySelector(".history-card h3");
+const historySubtitleEl = document.querySelector(
+  ".history-card .history-subtitle"
+);
 const calcEntryEl = document.getElementById("calc-entry-price");
 const calcMultiplierEl = document.getElementById("calc-multiplier");
 const calcTargetEl = document.getElementById("calc-target-price");
@@ -31,8 +60,8 @@ let chartInstance = null;
 let currentDays = 1;
 let lastPrice = null;
 
-// Упрощённые исторические данные по прошлым халвингам
-// Источники: открытые исследования по истории цены BTC; цифры округлены.
+// Упрощённые исторические данные по BTC вокруг прошлых BTC‑халвингов.
+// Источники: открытые исследования по истории цены BTC; цифры сильно округлены.
 const HALVING_HISTORY = [
   {
     year: 2012,
@@ -80,8 +109,9 @@ function formatPercent(value) {
 // Загрузка текущей цены (с запасным провайдером)
 async function fetchCurrentPrice() {
   try {
+    const asset = currentAsset();
     const url = `${COINGECKO_BASE}/simple/price?ids=${encodeURIComponent(
-      COIN_ID
+      asset.coingeckoId
     )}&vs_currencies=${encodeURIComponent(
       VS_CURRENCY
     )}&include_24hr_change=true`;
@@ -92,7 +122,7 @@ async function fetchCurrentPrice() {
     }
 
     const data = await res.json();
-    const coin = data[COIN_ID];
+    const coin = data[asset.coingeckoId];
     if (!coin) {
       throw new Error("Неожиданный формат ответа API CoinGecko");
     }
@@ -109,7 +139,8 @@ async function fetchCurrentPrice() {
 // Запасной провайдер — Binance (BTCUSDT)
 async function fetchCurrentPriceFromBinance() {
   try {
-    const url = `${BINANCE_BASE}/ticker/24hr?symbol=BTCUSDT`;
+    const asset = currentAsset();
+    const url = `${BINANCE_BASE}/ticker/24hr?symbol=${asset.binanceSymbol}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
       throw new Error(`Ошибка Binance API (${res.status})`);
@@ -120,7 +151,10 @@ async function fetchCurrentPriceFromBinance() {
     const changePct = Number.parseFloat(data.priceChangePercent);
     applyPriceToUi(price, changePct);
   } catch (error) {
-    console.error("Не удалось получить цену BTC ни с CoinGecko, ни с Binance", error);
+    console.error(
+      "Не удалось получить цену ни с CoinGecko, ни с Binance",
+      error
+    );
     changeEl.classList.remove("positive", "negative");
     changeEl.classList.add("muted");
     changeEl.textContent = "Не удалось обновить цену (оба API недоступны)";
@@ -151,8 +185,9 @@ function applyPriceToUi(price, changePct) {
 // Загрузка исторических данных для графика (с запасным провайдером)
 async function fetchMarketChart(days) {
   try {
+    const asset = currentAsset();
     const url = `${COINGECKO_BASE}/coins/${encodeURIComponent(
-      COIN_ID
+      asset.coingeckoId
     )}/market_chart?vs_currency=${encodeURIComponent(
       VS_CURRENCY
     )}&days=${encodeURIComponent(days)}&interval=hourly`;
@@ -187,7 +222,8 @@ async function fetchMarketChartFromBinance(days) {
     interval = "1d";
   }
 
-  const symbol = "BTCUSDT";
+  const asset = currentAsset();
+  const symbol = asset.binanceSymbol;
   // Лимит в пределах 1000, чтобы не перегружать API
   const limit = Math.min(days * 24, 1000);
   const url = `${BINANCE_BASE}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
@@ -240,6 +276,7 @@ function renderChart(points) {
   if (chartInstance) {
     chartInstance.data.labels = labels;
     chartInstance.data.datasets[0].data = dataset;
+    chartInstance.data.datasets[0].label = `${currentAsset().label} / USD`;
     chartInstance.update();
     return;
   }
@@ -250,7 +287,7 @@ function renderChart(points) {
       labels,
       datasets: [
         {
-          label: "BTC / USD",
+          label: `${currentAsset().label} / USD`,
           data: dataset,
           borderColor: "rgba(247, 147, 26, 0.96)",
           backgroundColor: gradient,
@@ -399,18 +436,32 @@ function startHalvingCountdown() {
 function populateHalvingHistory() {
   if (!historyTableBodyEl) return;
 
-  const rowsHtml = HALVING_HISTORY.map((item) => {
-    const multiplier = item.pricePlus500 / item.priceMinus500;
-    return `
-      <tr>
-        <td>${item.year}</td>
-        <td>${formatPrice(item.priceMinus500)}</td>
-        <td>${formatPrice(item.halvingPrice)}</td>
-        <td>${formatPrice(item.pricePlus500)}</td>
-        <td class="history-multiplier">×${multiplier.toFixed(1)}</td>
-      </tr>
-    `;
-  }).join("");
+  const rowsHtml = HALVING_HISTORY
+    .map((item) => {
+      const baseForMultiplier = item.priceMinus500;
+      const multiplier =
+        baseForMultiplier && item.pricePlus500
+          ? item.pricePlus500 / baseForMultiplier
+          : null;
+
+      const minus500Cell =
+        item.priceMinus500 == null
+          ? "—"
+          : formatPrice(item.priceMinus500);
+
+      return `
+        <tr>
+          <td>${item.year}</td>
+          <td>${minus500Cell}</td>
+          <td>${formatPrice(item.halvingPrice)}</td>
+          <td>${formatPrice(item.pricePlus500)}</td>
+          <td class="history-multiplier">${
+            multiplier ? `×${multiplier.toFixed(1)}` : "—"
+          }</td>
+        </tr>
+      `;
+    })
+    .join("");
 
   historyTableBodyEl.innerHTML = rowsHtml;
 }
@@ -448,9 +499,53 @@ function setupCycleCalculator() {
   recalc();
 }
 
+// Обновление текстовых подписей под текущий актив
+function updateAssetTexts() {
+  const asset = currentAsset();
+  if (priceLabelEl) {
+    priceLabelEl.textContent = `Текущая цена ${asset.label}`;
+  }
+  if (chartTitleEl) {
+    chartTitleEl.textContent = `Онлайн‑график ${asset.label} / USD`;
+  }
+
+  // Блок истории всегда относится к BTC‑халвингам,
+  // поэтому его заголовок и описание не зависят от выбранного актива.
+  if (historyTitleEl && historySubtitleEl) {
+    historyTitleEl.textContent =
+      "История прошлых халвингов Bitcoin и стратегия −500 / +500 дней";
+    historySubtitleEl.textContent =
+      "Ниже приведены упрощённые исторические данные по цене BTC: примерно 500 дней до халвинга, в день события и около пика цикла. Цифры сильно округлены и не являются точным бэктестом, но хорошо показывают структуру прошлых циклов.";
+  }
+}
+
+// Переключатель активов BTC / ETH
+function setupAssetSwitch() {
+  if (!assetSwitchButtons.length) return;
+
+  assetSwitchButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const assetKey = btn.dataset.asset;
+      if (!ASSETS[assetKey] || assetKey === currentAssetKey) return;
+
+      currentAssetKey = assetKey;
+
+      assetSwitchButtons.forEach((b) =>
+        b.classList.toggle("asset-btn-active", b === btn)
+      );
+
+      updateAssetTexts();
+      loadChart(currentDays);
+      fetchCurrentPrice();
+    });
+  });
+}
+
 // Инициализация
 function init() {
   setupTimeframeButtons();
+  setupAssetSwitch();
+  updateAssetTexts();
   loadChart(currentDays);
   fetchCurrentPrice();
   startHalvingCountdown();
