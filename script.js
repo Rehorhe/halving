@@ -33,6 +33,12 @@ const priceEl = document.getElementById("asset-price");
 const changeEl = document.getElementById("asset-change");
 const priceLabelEl = document.getElementById("price-label");
 const chartTitleEl = document.getElementById("chart-title");
+const selectedRangeLabelEl = document.getElementById("selected-range-label");
+const chartPanelAssetEl = document.getElementById("chart-panel-asset");
+const chartStatLastEl = document.getElementById("chart-stat-last");
+const chartStatChangeEl = document.getElementById("chart-stat-change");
+const chartStatHighEl = document.getElementById("chart-stat-high");
+const chartStatLowEl = document.getElementById("chart-stat-low");
 const assetSwitchButtons = Array.from(
   document.querySelectorAll(".asset-btn")
 );
@@ -47,11 +53,14 @@ const minutesEl = document.getElementById("minutes");
 const secondsEl = document.getElementById("seconds");
 
 // Элементы для блока истории и калькулятора
+const historyCardEl = document.querySelector(".history-card");
 const historyTableBodyEl = document.getElementById("history-table-body");
-const historyTitleEl = document.querySelector(".history-card h3");
-const historySubtitleEl = document.querySelector(
-  ".history-card .history-subtitle"
-);
+const historyTitleEl = historyCardEl
+  ? historyCardEl.querySelector("h3")
+  : null;
+const historySubtitleEl = historyCardEl
+  ? historyCardEl.querySelector(".history-subtitle")
+  : null;
 const calcEntryEl = document.getElementById("calc-entry-price");
 const calcMultiplierEl = document.getElementById("calc-multiplier");
 const calcTargetEl = document.getElementById("calc-target-price");
@@ -106,6 +115,50 @@ function formatPercent(value) {
   return `${value.toFixed(2)}%`;
 }
 
+function updateChartStats(points) {
+  if (
+    !chartStatLastEl ||
+    !chartStatChangeEl ||
+    !chartStatHighEl ||
+    !chartStatLowEl ||
+    !points.length
+  ) {
+    return;
+  }
+
+  const prices = points.map((point) => point.price);
+  const first = prices[0];
+  const last = prices[prices.length - 1];
+  const high = Math.max(...prices);
+  const low = Math.min(...prices);
+  const changePct = first > 0 ? ((last - first) / first) * 100 : 0;
+
+  chartStatLastEl.textContent = formatPrice(last);
+  chartStatHighEl.textContent = formatPrice(high);
+  chartStatLowEl.textContent = formatPrice(low);
+  chartStatChangeEl.textContent =
+    changePct >= 0 ? `+${formatPercent(changePct)}` : formatPercent(changePct);
+  chartStatChangeEl.classList.remove("positive", "negative");
+  chartStatChangeEl.classList.add(changePct >= 0 ? "positive" : "negative");
+}
+
+function getRangeLabel(days) {
+  switch (Number(days)) {
+    case 1:
+      return "24 hours";
+    case 7:
+      return "7 days";
+    case 30:
+      return "30 days";
+    case 180:
+      return "6 months";
+    case 365:
+      return "1 year";
+    default:
+      return `${days} days`;
+  }
+}
+
 // Загрузка текущей цены (с запасным провайдером)
 async function fetchCurrentPrice() {
   try {
@@ -118,20 +171,20 @@ async function fetchCurrentPrice() {
     const res = await fetch(url, { cache: "no-store" });
 
     if (!res.ok) {
-      throw new Error(`Ошибка API (${res.status})`);
+      throw new Error(`API error (${res.status})`);
     }
 
     const data = await res.json();
     const coin = data[asset.coingeckoId];
     if (!coin) {
-      throw new Error("Неожиданный формат ответа API CoinGecko");
+      throw new Error("Unexpected CoinGecko API response format");
     }
 
     const price = coin[VS_CURRENCY];
     const changePct = coin[`${VS_CURRENCY}_24h_change`];
     applyPriceToUi(price, changePct);
   } catch (error) {
-    console.warn("CoinGecko недоступен, пробуем Binance для цены", error);
+    console.warn("CoinGecko is unavailable, trying Binance for price", error);
     await fetchCurrentPriceFromBinance();
   }
 }
@@ -143,7 +196,7 @@ async function fetchCurrentPriceFromBinance() {
     const url = `${BINANCE_BASE}/ticker/24hr?symbol=${asset.binanceSymbol}`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
-      throw new Error(`Ошибка Binance API (${res.status})`);
+      throw new Error(`Binance API error (${res.status})`);
     }
 
     const data = await res.json();
@@ -152,12 +205,12 @@ async function fetchCurrentPriceFromBinance() {
     applyPriceToUi(price, changePct);
   } catch (error) {
     console.error(
-      "Не удалось получить цену ни с CoinGecko, ни с Binance",
+      "Failed to fetch price from both CoinGecko and Binance",
       error
     );
     changeEl.classList.remove("positive", "negative");
     changeEl.classList.add("muted");
-    changeEl.textContent = "Не удалось обновить цену (оба API недоступны)";
+    changeEl.textContent = "Unable to update price (both APIs unavailable)";
   }
 }
 
@@ -169,8 +222,8 @@ function applyPriceToUi(price, changePct) {
   changeEl.classList.remove("positive", "negative", "muted");
   const label =
     changePct > 0
-      ? `+${formatPercent(changePct)} за 24ч`
-      : `${formatPercent(changePct)} за 24ч`;
+      ? `+${formatPercent(changePct)} in 24h`
+      : `${formatPercent(changePct)} in 24h`;
 
   if (changePct > 0) {
     changeEl.classList.add("positive");
@@ -184,22 +237,35 @@ function applyPriceToUi(price, changePct) {
 
 // Загрузка исторических данных для графика (с запасным провайдером)
 async function fetchMarketChart(days) {
+  const numericDays = Number(days);
+  const useDaysParam = Number.isNaN(numericDays) ? days : numericDays;
+
+  // Подбираем интервал в зависимости от диапазона
+  let interval = "hourly";
+  if (numericDays > 90) {
+    interval = "daily";
+  } else if (numericDays > 30) {
+    interval = "daily";
+  }
+
   try {
     const asset = currentAsset();
     const url = `${COINGECKO_BASE}/coins/${encodeURIComponent(
       asset.coingeckoId
     )}/market_chart?vs_currency=${encodeURIComponent(
       VS_CURRENCY
-    )}&days=${encodeURIComponent(days)}&interval=hourly`;
+    )}&days=${encodeURIComponent(useDaysParam)}&interval=${encodeURIComponent(
+      interval
+    )}`;
 
     const res = await fetch(url);
     if (!res.ok) {
-      throw new Error(`Ошибка загрузки графика (${res.status})`);
+      throw new Error(`Chart loading error (${res.status})`);
     }
 
     const data = await res.json();
     if (!data.prices || !Array.isArray(data.prices)) {
-      throw new Error("Неожиданный формат данных графика");
+      throw new Error("Unexpected chart data format");
     }
 
     return data.prices.map(([timestamp, price]) => ({
@@ -207,7 +273,7 @@ async function fetchMarketChart(days) {
       price,
     }));
   } catch (error) {
-    console.warn("CoinGecko недоступен, пробуем Binance для графика", error);
+    console.warn("CoinGecko is unavailable, trying Binance for chart", error);
     return fetchMarketChartFromBinance(days);
   }
 }
@@ -225,17 +291,20 @@ async function fetchMarketChartFromBinance(days) {
   const asset = currentAsset();
   const symbol = asset.binanceSymbol;
   // Лимит в пределах 1000, чтобы не перегружать API
-  const limit = Math.min(days * 24, 1000);
+  const numericDays = Number(days);
+  const limit = Number.isNaN(numericDays)
+    ? 1000
+    : Math.min(numericDays * 24, 1000);
   const url = `${BINANCE_BASE}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
 
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Ошибка Binance kline API (${res.status})`);
+    throw new Error(`Binance kline API error (${res.status})`);
   }
 
   const data = await res.json();
   if (!Array.isArray(data)) {
-    throw new Error("Неожиданный формат данных Binance kline");
+    throw new Error("Unexpected Binance kline data format");
   }
 
   // Формат строки: [ openTime, open, high, low, close, volume, ... ]
@@ -254,24 +323,36 @@ function showLoader(show) {
 function renderChart(points) {
   const ctx = document.getElementById("btc-chart");
   if (!ctx) return;
+  updateChartStats(points);
 
   const labels = points.map((p) =>
-    currentDays <= 1
+    currentDays <= 2
       ? p.time.toLocaleTimeString("ru-RU", {
           hour: "2-digit",
           minute: "2-digit",
         })
+      : currentDays <= 90
+      ? p.time.toLocaleDateString("ru-RU", {
+          day: "2-digit",
+          month: "2-digit",
+        })
       : p.time.toLocaleDateString("ru-RU", {
           day: "2-digit",
           month: "2-digit",
+          year: "2-digit",
         })
   );
 
   const dataset = points.map((p) => p.price);
+  const highValue = Math.max(...dataset);
+  const lowValue = Math.min(...dataset);
+  const highIndex = dataset.indexOf(highValue);
+  const lowIndex = dataset.indexOf(lowValue);
 
-  const gradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 240);
-  gradient.addColorStop(0, "rgba(247, 147, 26, 0.42)");
-  gradient.addColorStop(1, "rgba(15, 23, 42, 0.05)");
+  const gradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 260);
+  gradient.addColorStop(0, "rgba(96, 165, 250, 0.14)");
+  gradient.addColorStop(0.65, "rgba(37, 99, 235, 0.06)");
+  gradient.addColorStop(1, "rgba(15, 23, 42, 0)");
 
   if (chartInstance) {
     chartInstance.data.labels = labels;
@@ -281,6 +362,111 @@ function renderChart(points) {
     return;
   }
 
+  const terminalOverlayPlugin = {
+    id: "terminalOverlay",
+    afterDatasetsDraw(chart) {
+      const { ctx: c, chartArea, scales, tooltip } = chart;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data || !meta.data.length || !chartArea) return;
+
+      c.save();
+
+      // Right-side last price line and badge
+      const lastPoint = meta.data[meta.data.length - 1];
+      const lastValue = dataset[dataset.length - 1];
+      if (lastPoint && Number.isFinite(lastValue)) {
+        c.setLineDash([5, 5]);
+        c.lineWidth = 1;
+        c.strokeStyle = "rgba(96, 165, 250, 0.28)";
+        c.beginPath();
+        c.moveTo(chartArea.left, lastPoint.y);
+        c.lineTo(chartArea.right, lastPoint.y);
+        c.stroke();
+
+        c.setLineDash([]);
+        const label = formatPrice(lastValue);
+        c.font = "600 11px Inter, system-ui, sans-serif";
+        const textWidth = c.measureText(label).width;
+        const badgeWidth = textWidth + 18;
+        const badgeHeight = 24;
+        const badgeX = chartArea.right - badgeWidth - 8;
+        const badgeY = Math.min(
+          Math.max(lastPoint.y - badgeHeight - 8, chartArea.top + 8),
+          chartArea.bottom - badgeHeight - 8
+        );
+
+        c.fillStyle = "rgba(8, 15, 30, 0.92)";
+        c.strokeStyle = "rgba(96, 165, 250, 0.36)";
+        c.lineWidth = 1;
+        c.beginPath();
+        c.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 12);
+        c.fill();
+        c.stroke();
+
+        c.fillStyle = "rgba(226, 232, 240, 0.96)";
+        c.textBaseline = "middle";
+        c.fillText(label, badgeX + 9, badgeY + badgeHeight / 2);
+      }
+
+      // High / low markers
+      const highPoint = meta.data[highIndex];
+      const lowPoint = meta.data[lowIndex];
+      const drawTag = (point, text, alignTop = true) => {
+        if (!point) return;
+        c.save();
+        c.font = "600 11px Inter, system-ui, sans-serif";
+        const width = c.measureText(text).width + 16;
+        const height = 22;
+        const x = Math.min(Math.max(point.x - width / 2, chartArea.left + 4), chartArea.right - width - 4);
+        const y = alignTop ? Math.max(point.y - height - 10, chartArea.top + 6) : Math.min(point.y + 10, chartArea.bottom - height - 6);
+
+        c.fillStyle = "rgba(8, 15, 30, 0.94)";
+        c.strokeStyle = "rgba(148, 163, 184, 0.24)";
+        c.beginPath();
+        c.roundRect(x, y, width, height, 10);
+        c.fill();
+        c.stroke();
+
+        c.fillStyle = "rgba(226, 232, 240, 0.92)";
+        c.textBaseline = "middle";
+        c.fillText(text, x + 8, y + height / 2);
+        c.restore();
+      };
+
+      drawTag(highPoint, `High ${formatPrice(highValue)}`, true);
+      drawTag(lowPoint, `Low ${formatPrice(lowValue)}`, false);
+
+      // Crosshair on hover for terminal feel
+      if (tooltip && tooltip._active && tooltip._active.length) {
+        const active = tooltip._active[0].element;
+        const x = active.x;
+        const y = active.y;
+
+        c.setLineDash([4, 4]);
+        c.strokeStyle = "rgba(148, 163, 184, 0.26)";
+        c.lineWidth = 1;
+
+        c.beginPath();
+        c.moveTo(x, chartArea.top);
+        c.lineTo(x, chartArea.bottom);
+        c.stroke();
+
+        c.beginPath();
+        c.moveTo(chartArea.left, y);
+        c.lineTo(chartArea.right, y);
+        c.stroke();
+
+        c.setLineDash([]);
+        c.fillStyle = "rgba(125, 211, 252, 1)";
+        c.beginPath();
+        c.arc(x, y, 4, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      c.restore();
+    },
+  };
+
   chartInstance = new Chart(ctx, {
     type: "line",
     data: {
@@ -289,12 +475,15 @@ function renderChart(points) {
         {
           label: `${currentAsset().label} / USD`,
           data: dataset,
-          borderColor: "rgba(247, 147, 26, 0.96)",
+          borderColor: "rgba(96, 165, 250, 0.98)",
           backgroundColor: gradient,
-          borderWidth: 2,
+          borderWidth: 2.2,
           pointRadius: 0,
-          pointHitRadius: 8,
-          tension: 0.25,
+          pointHitRadius: 16,
+          pointHoverRadius: 0,
+          pointHoverBorderWidth: 0,
+          pointHoverBackgroundColor: "rgba(96, 165, 250, 1)",
+          tension: 0.16,
           fill: true,
         },
       ],
@@ -311,19 +500,28 @@ function renderChart(points) {
           display: false,
         },
         tooltip: {
-          backgroundColor: "rgba(15, 23, 42, 0.96)",
-          borderColor: "rgba(148, 163, 184, 0.6)",
+          backgroundColor: "rgba(2, 6, 23, 0.96)",
+          borderColor: "rgba(94, 234, 212, 0.28)",
           borderWidth: 1,
+          padding: 12,
+          displayColors: false,
           titleFont: {
-            size: 11,
+            size: 12,
+            weight: "700",
           },
           bodyFont: {
-            size: 11,
+            size: 13,
+            weight: "700",
           },
           callbacks: {
+            title(contexts) {
+              const ctx = contexts[0];
+              const label = ctx.label || "";
+              return `Time: ${label}`;
+            },
             label(context) {
               const value = context.parsed.y;
-              return ` ${formatPrice(value)}`;
+              return `Price: ${formatPrice(value)}`;
             },
           },
         },
@@ -331,29 +529,37 @@ function renderChart(points) {
       scales: {
         x: {
           ticks: {
-            color: "rgba(148, 163, 184, 0.9)",
+            color: "rgba(148, 163, 184, 0.78)",
             maxTicksLimit: 6,
+            padding: 10,
           },
           grid: {
-            display: false,
+            color: "rgba(255, 255, 255, 0.03)",
+            drawTicks: false,
+            borderColor: "rgba(255, 255, 255, 0.04)",
           },
         },
         y: {
           ticks: {
-            color: "rgba(148, 163, 184, 0.9)",
+            color: "rgba(148, 163, 184, 0.78)",
+            padding: 12,
             callback(value) {
               if (value >= 1000) {
-                return `${(value / 1000).toFixed(0)}k`;
+                const abbreviated = value / 1000;
+                return `${abbreviated.toFixed(abbreviated >= 100 ? 0 : 1).replace(".0", "")}k`;
               }
               return value;
             },
           },
           grid: {
-            color: "rgba(31, 41, 55, 0.7)",
+            color: "rgba(255, 255, 255, 0.045)",
+            drawTicks: false,
+            borderColor: "rgba(255, 255, 255, 0.04)",
           },
         },
       },
     },
+    plugins: [terminalOverlayPlugin],
   });
 }
 
@@ -368,7 +574,7 @@ async function loadChart(days) {
     hadError = true;
     if (loaderEl) {
       loaderEl.textContent =
-        "Не удалось загрузить график (возможно, лимит CoinGecko).";
+        "Unable to load chart data (CoinGecko rate limit may apply).";
     }
   } finally {
     // Если произошла ошибка, оставляем оверлей с сообщением,
@@ -391,6 +597,9 @@ function setupTimeframeButtons() {
       timeframeButtons.forEach((b) =>
         b.classList.toggle("btn-active", b === btn)
       );
+      if (selectedRangeLabelEl) {
+        selectedRangeLabelEl.textContent = getRangeLabel(days);
+      }
       loadChart(currentDays);
     });
   });
@@ -400,7 +609,7 @@ function setupTimeframeButtons() {
 function startHalvingCountdown() {
   const target = new Date(NEXT_HALVING_ESTIMATE_ISO).getTime();
   if (Number.isNaN(target)) {
-    console.warn("Некорректная дата халвинга");
+    console.warn("Invalid halving date");
     return;
   }
 
@@ -503,19 +712,25 @@ function setupCycleCalculator() {
 function updateAssetTexts() {
   const asset = currentAsset();
   if (priceLabelEl) {
-    priceLabelEl.textContent = `Текущая цена ${asset.label}`;
+    priceLabelEl.textContent = `Current ${asset.label} price`;
   }
   if (chartTitleEl) {
-    chartTitleEl.textContent = `Онлайн‑график ${asset.label} / USD`;
+    chartTitleEl.textContent = `Live ${asset.label} / USD chart`;
+  }
+  if (chartPanelAssetEl) {
+    chartPanelAssetEl.textContent = `${asset.label} / USD`;
+  }
+  if (selectedRangeLabelEl) {
+    selectedRangeLabelEl.textContent = getRangeLabel(currentDays);
   }
 
-  // Блок истории всегда относится к BTC‑халвингам,
-  // поэтому его заголовок и описание не зависят от выбранного актива.
-  if (historyTitleEl && historySubtitleEl) {
-    historyTitleEl.textContent =
-      "История прошлых халвингов Bitcoin и стратегия −500 / +500 дней";
-    historySubtitleEl.textContent =
-      "Ниже приведены упрощённые исторические данные по цене BTC: примерно 500 дней до халвинга, в день события и около пика цикла. Цифры сильно округлены и не являются точным бэктестом, но хорошо показывают структуру прошлых циклов.";
+  // Блок истории показываем только для BTC, для ETH скрываем полностью.
+  if (historyCardEl) {
+    if (currentAssetKey === "ETH") {
+      historyCardEl.style.display = "none";
+    } else {
+      historyCardEl.style.display = "";
+    }
   }
 }
 

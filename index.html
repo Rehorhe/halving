@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <title>Bitcoin Live — График и халвинг</title>
+    <title>Bitcoin Live — Market Cycles and Halving</title>
     <link rel="stylesheet" href="./style.css" />
     <!-- Chart.js с CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -14,153 +14,154 @@
   <body>
     <div class="app">
       <header class="header">
-        <div class="logo">
-          <span class="logo-icon">₿</span>
-          <div class="logo-text">
-            <h1>Bitcoin Live</h1>
-            <p>График цены и дни до халвинга</p>
+        <div class="hero-copy">
+          <div class="logo">
+            <span class="logo-icon">₿</span>
+            <div class="logo-text">
+              <span class="eyebrow">Cycle Intelligence</span>
+              <h1>Bitcoin Live</h1>
+              <p>Premium BTC and ETH cycle tracker with a halving-focused market thesis.</p>
+            </div>
           </div>
         </div>
 
-        <div class="asset-switch">
-          <button class="asset-btn asset-btn-active" data-asset="BTC">BTC</button>
-          <button class="asset-btn" data-asset="ETH">ETH</button>
-        </div>
+        <div class="hero-controls">
+          <div class="asset-switch-wrap">
+            <span class="control-label">Asset</span>
+            <div class="asset-switch">
+              <button class="asset-btn asset-btn-active" data-asset="BTC">BTC</button>
+              <button class="asset-btn" data-asset="ETH">ETH</button>
+            </div>
+          </div>
 
-        <div class="price-card">
-          <div id="price-label" class="price-label">Текущая цена BTC</div>
-          <div id="asset-price" class="price-value">—</div>
-          <div id="asset-change" class="price-change muted">Загрузка…</div>
+          <div class="price-card">
+            <div class="price-card-top">
+              <div id="price-label" class="price-label">Current BTC price</div>
+              <span class="live-dot"></span>
+            </div>
+            <div class="price-main-row">
+              <div id="asset-price" class="price-value">—</div>
+              <div id="asset-change" class="price-change muted">Loading…</div>
+            </div>
+          </div>
         </div>
       </header>
 
       <main class="main">
         <section class="chart-section">
-          <div class="section-header">
-            <h2 id="chart-title">Онлайн‑график BTC / USD</h2>
-            <div class="timeframe-selector">
-              <button data-days="1" class="btn btn-outline btn-active">
-                24 часа
-              </button>
-              <button data-days="7" class="btn btn-outline">7 дней</button>
-              <button data-days="30" class="btn btn-outline">30 дней</button>
-              <button data-days="90" class="btn btn-outline">90 дней</button>
+          <div class="section-header chart-header">
+            <div class="section-copy">
+              <span class="eyebrow">Live Market View</span>
+              <h2 id="chart-title">Live BTC / USD chart</h2>
+              <p class="section-description">
+                Market rhythm, price momentum, and the cycle window in a single view.
+              </p>
+            </div>
+
+            <div class="chart-controls">
+              <div class="chart-meta">
+                <div class="meta-chip">
+                  <span>Source</span>
+                  <strong>CoinGecko</strong>
+                </div>
+                <div class="meta-chip">
+                  <span>Refresh</span>
+                  <strong>20 sec</strong>
+                </div>
+                <div class="meta-chip">
+                  <span>Range</span>
+                  <strong id="selected-range-label">24 hours</strong>
+                </div>
+              </div>
+
+              <div class="timeframe-selector">
+                <button data-days="1" class="btn btn-outline btn-active">
+                  24 hours
+                </button>
+                <button data-days="7" class="btn btn-outline">7 days</button>
+                <button data-days="30" class="btn btn-outline">30 days</button>
+                <button data-days="180" class="btn btn-outline">6&nbsp;months</button>
+                <button data-days="365" class="btn btn-outline">1&nbsp;year</button>
+              </div>
             </div>
           </div>
           <div class="card chart-card">
-            <canvas id="btc-chart"></canvas>
-            <div id="chart-loader" class="overlay-loader">Загрузка данных…</div>
+            <div class="chart-panel-head">
+              <div class="chart-panel-title">
+                <span class="chart-panel-kicker">Market structure</span>
+                <strong id="chart-panel-asset">BTC / USD</strong>
+              </div>
+              <div class="chart-stats">
+                <div class="chart-stat">
+                  <span class="chart-stat-label">Last</span>
+                  <strong id="chart-stat-last">—</strong>
+                </div>
+                <div class="chart-stat">
+                  <span class="chart-stat-label">Change</span>
+                  <strong id="chart-stat-change">—</strong>
+                </div>
+                <div class="chart-stat">
+                  <span class="chart-stat-label">High</span>
+                  <strong id="chart-stat-high">—</strong>
+                </div>
+                <div class="chart-stat">
+                  <span class="chart-stat-label">Low</span>
+                  <strong id="chart-stat-low">—</strong>
+                </div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="btc-chart"></canvas>
+            </div>
+            <div id="chart-loader" class="overlay-loader">Loading data…</div>
           </div>
+
         </section>
 
         <section class="halving-section">
           <div class="card halving-card">
-            <h2>Обратный отсчёт до следующего халвинга Bitcoin</h2>
+            <span class="eyebrow">Next Event Window</span>
+            <h2>Countdown to the next Bitcoin halving</h2>
             <p class="halving-subtitle">
-              Дата основана на примерной оценке блока, фактический момент может
-              немного отличаться.
+              The estimate is based on the expected block height. The exact date can shift, but
+              the cycle thesis remains the same market magnet.
             </p>
             <div class="countdown-grid">
               <div class="countdown-item">
                 <div id="days" class="countdown-value">—</div>
-                <div class="countdown-label">дней</div>
+                <div class="countdown-label">days</div>
               </div>
               <div class="countdown-item">
                 <div id="hours" class="countdown-value">—</div>
-                <div class="countdown-label">часов</div>
+                <div class="countdown-label">hours</div>
               </div>
               <div class="countdown-item">
                 <div id="minutes" class="countdown-value">—</div>
-                <div class="countdown-label">минут</div>
+                <div class="countdown-label">minutes</div>
               </div>
               <div class="countdown-item">
                 <div id="seconds" class="countdown-value">—</div>
-                <div class="countdown-label">секунд</div>
+                <div class="countdown-label">seconds</div>
               </div>
             </div>
-          </div>
-
-          <div class="card history-card">
-            <h3>История прошлых халвингов Bitcoin и стратегия −500 / +500 дней</h3>
-            <p class="history-subtitle">
-              Ниже приведены упрощённые исторические данные по цене BTC: примерно 500 дней до
-              халвинга, в день события и около пика цикла. Цифры сильно округлены и не являются
-              точным бэктестом, но хорошо показывают структуру прошлых циклов.
-            </p>
-
-            <div class="history-table-wrapper">
-              <table class="history-table">
-                <thead>
-                  <tr>
-                    <th>Год BTC‑халвинга</th>
-                    <th>Цена ~500&nbsp;дн. до</th>
-                    <th>Цена в&nbsp;день халвинга</th>
-                    <th>Цена ~500&nbsp;дн. после<br />(пик цикла)</th>
-                    <th>Множитель<br />−500&nbsp;→&nbsp;+500&nbsp;дн.</th>
-                  </tr>
-                </thead>
-                <tbody id="history-table-body">
-                  <!-- Заполняется из script.js -->
-                </tbody>
-              </table>
-            </div>
-
-            <div class="history-calculator">
-              <h4>Черновой калькулятор текущего цикла</h4>
-              <p class="history-subtitle">
-                Введи свою оценку цены BTC за ~500 дней до следующего халвинга и предполагаемый
-                множитель. Сайт посчитает ориентировочную цену через ~500 дней после.
-              </p>
-              <div class="calc-grid">
-                <div class="calc-field">
-                  <label for="calc-entry-price">Предполагаемая цена входа (−500&nbsp;дней)</label>
-                  <div class="calc-input-row">
-                    <span class="calc-prefix">$</span>
-                    <input
-                      id="calc-entry-price"
-                      type="number"
-                      min="0"
-                      step="100"
-                      placeholder="Например, 40000"
-                    />
-                  </div>
-                </div>
-                <div class="calc-field">
-                  <label for="calc-multiplier">Ожидаемый множитель</label>
-                  <div class="calc-input-row">
-                    <input
-                      id="calc-multiplier"
-                      type="number"
-                      min="1"
-                      max="50"
-                      step="0.1"
-                      value="4"
-                    />
-                    <span class="calc-suffix">x</span>
-                  </div>
-                </div>
-              </div>
-              <div class="calc-result">
-                <span>Оценка цены через ~500 дней после халвинга:</span>
-                <strong id="calc-target-price">—</strong>
-              </div>
-              <p class="history-warning">
-                Это не финансовый совет и не точный прогноз, а иллюстрация идеи
-                «купить заранее и продавать после халвинга» по мотивам прошлых циклов.
-              </p>
+            <div class="halving-note">
+              <span class="halving-note-title">Cycle Edge</span>
+              <span class="halving-note-copy">
+                The closer the event gets, the stronger the market attention and the sensitivity to momentum.
+              </span>
             </div>
           </div>
         </section>
       </main>
 
       <footer class="footer">
-        <span>Создан для демонстрационных целей. Не является инвестиционной рекомендацией.</span>
+        <span>Built for demonstration purposes. Not investment advice.</span>
         <a
           href="https://www.coingecko.com/"
           target="_blank"
           rel="noreferrer"
         >
-          Данные цены: CoinGecko
+          Price data: CoinGecko
         </a>
       </footer>
     </div>
