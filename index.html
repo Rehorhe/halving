@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Bitcoin Live — График и халвинг</title>
+    <link rel="stylesheet" href="./style.css" />
+    <!-- Chart.js с CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="logo">
+          <span class="logo-icon">₿</span>
+          <div class="logo-text">
+            <h1>Bitcoin Live</h1>
+            <p>График цены BTC и дни до халвинга</p>
+          </div>
+        </div>
+        <div class="price-card">
+          <div class="price-label">Текущая цена BTC</div>
+          <div id="btc-price" class="price-value">—</div>
+          <div id="btc-change" class="price-change muted">Загрузка…</div>
+        </div>
+      </header>
+
+      <main class="main">
+        <section class="chart-section">
+          <div class="section-header">
+            <h2>Онлайн‑график BTC / USD</h2>
+            <div class="timeframe-selector">
+              <button data-days="1" class="btn btn-outline btn-active">
+                24 часа
+              </button>
+              <button data-days="7" class="btn btn-outline">7 дней</button>
+              <button data-days="30" class="btn btn-outline">30 дней</button>
+              <button data-days="90" class="btn btn-outline">90 дней</button>
+            </div>
+          </div>
+          <div class="card chart-card">
+            <canvas id="btc-chart"></canvas>
+            <div id="chart-loader" class="overlay-loader">Загрузка данных…</div>
+          </div>
+        </section>
+
+        <section class="halving-section">
+          <div class="card halving-card">
+            <h2>Обратный отсчёт до следующего халвинга Bitcoin</h2>
+            <p class="halving-subtitle">
+              Дата основана на примерной оценке блока, фактический момент может
+              немного отличаться.
+            </p>
+            <div class="countdown-grid">
+              <div class="countdown-item">
+                <div id="days" class="countdown-value">—</div>
+                <div class="countdown-label">дней</div>
+              </div>
+              <div class="countdown-item">
+                <div id="hours" class="countdown-value">—</div>
+                <div class="countdown-label">часов</div>
+              </div>
+              <div class="countdown-item">
+                <div id="minutes" class="countdown-value">—</div>
+                <div class="countdown-label">минут</div>
+              </div>
+              <div class="countdown-item">
+                <div id="seconds" class="countdown-value">—</div>
+                <div class="countdown-label">секунд</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card info-card">
+            <h3>Как работает сайт</h3>
+            <ul>
+              <li>
+                Данные по цене и графику берутся из публичного API
+                CoinGecko (без ключа).
+              </li>
+              <li>
+                Цена обновляется автоматически каждые
+                <span class="highlight">20 секунд</span>.
+              </li>
+              <li>
+                График обновляется при смене интервала или примерно раз в
+                несколько минут.
+              </li>
+              <li>
+                Сайт чисто статический — можно бесплатно разместить на
+                GitHub Pages, Netlify, Vercel и др.
+              </li>
+            </ul>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Создан для демонстрационных целей. Не является инвестиционной рекомендацией.</span>
+        <a
+          href="https://www.coingecko.com/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Данные цены: CoinGecko
+        </a>
+      </footer>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
+
