@@ -34,6 +34,8 @@ const changeEl = document.getElementById("asset-change");
 const priceLabelEl = document.getElementById("price-label");
 const chartTitleEl = document.getElementById("chart-title");
 const selectedRangeLabelEl = document.getElementById("selected-range-label");
+const marketPhaseBadgeEl = document.getElementById("market-phase-badge");
+const chartLastUpdatedEl = document.getElementById("chart-last-updated");
 const chartPanelAssetEl = document.getElementById("chart-panel-asset");
 const chartStatLastEl = document.getElementById("chart-stat-last");
 const chartStatChangeEl = document.getElementById("chart-stat-change");
@@ -68,6 +70,7 @@ const calcTargetEl = document.getElementById("calc-target-price");
 let chartInstance = null;
 let currentDays = 1;
 let lastPrice = null;
+let lastChartUpdatedAt = null;
 
 // Упрощённые исторические данные по BTC вокруг прошлых BTC‑халвингов.
 // Источники: открытые исследования по истории цены BTC; цифры сильно округлены.
@@ -115,6 +118,38 @@ function formatPercent(value) {
   return `${value.toFixed(2)}%`;
 }
 
+function getMarketPhase(changePct) {
+  if (changePct >= 8) {
+    return { label: "Breakout", className: "breakout" };
+  }
+  if (changePct >= 2) {
+    return { label: "Recovery", className: "recovery" };
+  }
+  if (changePct <= -8) {
+    return { label: "Drawdown", className: "drawdown" };
+  }
+  if (changePct <= -2) {
+    return { label: "Cooldown", className: "cooldown" };
+  }
+  return { label: "Compression", className: "compression" };
+}
+
+function updateLastUpdatedText() {
+  if (!chartLastUpdatedEl || !lastChartUpdatedAt) return;
+
+  const diffSec = Math.max(0, Math.floor((Date.now() - lastChartUpdatedAt) / 1000));
+  if (diffSec < 5) {
+    chartLastUpdatedEl.textContent = "Updated just now";
+    return;
+  }
+  if (diffSec < 60) {
+    chartLastUpdatedEl.textContent = `Updated ${diffSec}s ago`;
+    return;
+  }
+  const diffMin = Math.floor(diffSec / 60);
+  chartLastUpdatedEl.textContent = `Updated ${diffMin}m ago`;
+}
+
 function updateChartStats(points) {
   if (
     !chartStatLastEl ||
@@ -140,6 +175,12 @@ function updateChartStats(points) {
     changePct >= 0 ? `+${formatPercent(changePct)}` : formatPercent(changePct);
   chartStatChangeEl.classList.remove("positive", "negative");
   chartStatChangeEl.classList.add(changePct >= 0 ? "positive" : "negative");
+
+  if (marketPhaseBadgeEl) {
+    const phase = getMarketPhase(changePct);
+    marketPhaseBadgeEl.textContent = phase.label;
+    marketPhaseBadgeEl.className = `market-phase ${phase.className}`;
+  }
 }
 
 function getRangeLabel(days) {
@@ -344,20 +385,19 @@ function renderChart(points) {
   );
 
   const dataset = points.map((p) => p.price);
-  const highValue = Math.max(...dataset);
-  const lowValue = Math.min(...dataset);
-  const highIndex = dataset.indexOf(highValue);
-  const lowIndex = dataset.indexOf(lowValue);
 
   const gradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 260);
   gradient.addColorStop(0, "rgba(96, 165, 250, 0.14)");
   gradient.addColorStop(0.65, "rgba(37, 99, 235, 0.06)");
   gradient.addColorStop(1, "rgba(15, 23, 42, 0)");
 
+  const chartBackground = gradient;
+
   if (chartInstance) {
     chartInstance.data.labels = labels;
     chartInstance.data.datasets[0].data = dataset;
     chartInstance.data.datasets[0].label = `${currentAsset().label} / USD`;
+    chartInstance.data.datasets[0].backgroundColor = chartBackground;
     chartInstance.update();
     return;
   }
@@ -369,12 +409,20 @@ function renderChart(points) {
       const meta = chart.getDatasetMeta(0);
       if (!meta || !meta.data || !meta.data.length || !chartArea) return;
 
+      const currentDataset = chart.data.datasets[0]?.data || [];
+      if (!currentDataset.length) return;
+
+      const currentLastValue = currentDataset[currentDataset.length - 1];
+      const currentHighValue = Math.max(...currentDataset);
+      const currentLowValue = Math.min(...currentDataset);
+      const currentHighIndex = currentDataset.indexOf(currentHighValue);
+      const currentLowIndex = currentDataset.indexOf(currentLowValue);
+
       c.save();
 
       // Right-side last price line and badge
       const lastPoint = meta.data[meta.data.length - 1];
-      const lastValue = dataset[dataset.length - 1];
-      if (lastPoint && Number.isFinite(lastValue)) {
+      if (lastPoint && Number.isFinite(currentLastValue)) {
         c.setLineDash([5, 5]);
         c.lineWidth = 1;
         c.strokeStyle = "rgba(96, 165, 250, 0.28)";
@@ -384,7 +432,7 @@ function renderChart(points) {
         c.stroke();
 
         c.setLineDash([]);
-        const label = formatPrice(lastValue);
+        const label = formatPrice(currentLastValue);
         c.font = "600 11px Inter, system-ui, sans-serif";
         const textWidth = c.measureText(label).width;
         const badgeWidth = textWidth + 18;
@@ -409,16 +457,25 @@ function renderChart(points) {
       }
 
       // High / low markers
-      const highPoint = meta.data[highIndex];
-      const lowPoint = meta.data[lowIndex];
-      const drawTag = (point, text, alignTop = true) => {
+      const drawTag = (point, text, options = {}) => {
         if (!point) return;
+        const {
+          vertical = "top",
+          side = "left",
+        } = options;
+
         c.save();
         c.font = "600 11px Inter, system-ui, sans-serif";
         const width = c.measureText(text).width + 16;
         const height = 22;
-        const x = Math.min(Math.max(point.x - width / 2, chartArea.left + 4), chartArea.right - width - 4);
-        const y = alignTop ? Math.max(point.y - height - 10, chartArea.top + 6) : Math.min(point.y + 10, chartArea.bottom - height - 6);
+        const x =
+          side === "right"
+            ? chartArea.right - width - 10
+            : chartArea.left + 10;
+        const y =
+          vertical === "bottom"
+            ? chartArea.bottom - height - 10
+            : chartArea.top + 10;
 
         c.fillStyle = "rgba(8, 15, 30, 0.94)";
         c.strokeStyle = "rgba(148, 163, 184, 0.24)";
@@ -433,8 +490,17 @@ function renderChart(points) {
         c.restore();
       };
 
-      drawTag(highPoint, `High ${formatPrice(highValue)}`, true);
-      drawTag(lowPoint, `Low ${formatPrice(lowValue)}`, false);
+      const highPoint = meta.data[currentHighIndex];
+      const lowPoint = meta.data[currentLowIndex];
+
+      drawTag(highPoint, `High ${formatPrice(currentHighValue)}`, {
+        vertical: "top",
+        side: "left",
+      });
+      drawTag(lowPoint, `Low ${formatPrice(currentLowValue)}`, {
+        vertical: "bottom",
+        side: "left",
+      });
 
       // Crosshair on hover for terminal feel
       if (tooltip && tooltip._active && tooltip._active.length) {
@@ -476,7 +542,7 @@ function renderChart(points) {
           label: `${currentAsset().label} / USD`,
           data: dataset,
           borderColor: "rgba(96, 165, 250, 0.98)",
-          backgroundColor: gradient,
+          backgroundColor: chartBackground,
           borderWidth: 2.2,
           pointRadius: 0,
           pointHitRadius: 16,
@@ -569,6 +635,8 @@ async function loadChart(days) {
   try {
     const points = await fetchMarketChart(days);
     renderChart(points);
+    lastChartUpdatedAt = Date.now();
+    updateLastUpdatedText();
   } catch (error) {
     console.error(error);
     hadError = true;
@@ -769,6 +837,7 @@ function init() {
 
   // Обновление цены каждые 20 секунд
   setInterval(fetchCurrentPrice, 20_000);
+  setInterval(updateLastUpdatedText, 1000);
 }
 
 if (document.readyState === "loading") {

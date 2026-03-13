@@ -72,16 +72,22 @@
                   <span>Range</span>
                   <strong id="selected-range-label">24 hours</strong>
                 </div>
+                <div class="meta-chip meta-chip-phase">
+                  <span>Cycle state</span>
+                  <strong id="market-phase-badge" class="market-phase neutral">Compression</strong>
+                </div>
               </div>
 
-              <div class="timeframe-selector">
-                <button data-days="1" class="btn btn-outline btn-active">
-                  24 hours
-                </button>
-                <button data-days="7" class="btn btn-outline">7 days</button>
-                <button data-days="30" class="btn btn-outline">30 days</button>
-                <button data-days="180" class="btn btn-outline">6&nbsp;months</button>
-                <button data-days="365" class="btn btn-outline">1&nbsp;year</button>
+              <div class="chart-switch-row">
+                <div class="timeframe-selector">
+                  <button data-days="1" class="btn btn-outline btn-active">
+                    24 hours
+                  </button>
+                  <button data-days="7" class="btn btn-outline">7 days</button>
+                  <button data-days="30" class="btn btn-outline">30 days</button>
+                  <button data-days="180" class="btn btn-outline">6&nbsp;months</button>
+                  <button data-days="365" class="btn btn-outline">1&nbsp;year</button>
+                </div>
               </div>
             </div>
           </div>
@@ -109,6 +115,9 @@
                   <strong id="chart-stat-low">—</strong>
                 </div>
               </div>
+            </div>
+            <div class="chart-panel-subline">
+              <span id="chart-last-updated" class="chart-last-updated">Updated just now</span>
             </div>
             <div class="chart-canvas-wrap">
               <canvas id="btc-chart"></canvas>
